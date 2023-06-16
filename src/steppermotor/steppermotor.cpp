@@ -1,9 +1,22 @@
 #include "steppermotor.h"
 
-#include <AccelStepper.h>
-
 /* local types & variables */
-AccelStepper *stepper;
+enum ButtonStates
+{
+    CLOCKWISE = 0,
+    ANTICLOCKWISE
+};
+
+typedef struct Stepper
+{
+    int16_t nb_steps = 0;
+    uint8_t curr_step = 0;
+    uint8_t direction = CLOCKWISE;
+
+    uint8_t coil1, coil2, coil3, coil4;
+} stepper_t;
+
+stepper_t *stepper_controler;
 hw_timer_t *stepper_timer;
 
 /* private functions prototypes */
@@ -12,53 +25,129 @@ void IRAM_ATTR stepperMotorTimerISR();
 /* public functions */
 void stepperMotorInit(uint8_t coil1_pin, uint8_t coil2_pin, uint8_t coil3_pin, uint8_t coil4_pin, uint8_t hw_timer_id)
 {
-    stepper = new AccelStepper(AccelStepper::FULL4WIRE, coil1_pin, coil2_pin, coil3_pin, coil4_pin, false);
+    stepper_controler = new stepper_t;
 
-    if (stepper != NULL)
+    if (stepper_controler != NULL)
     {
-        stepper->setMaxSpeed(300);
-        stepper->setAcceleration(400);
+        stepper_controler->coil1 = coil1_pin;
+        pinMode(coil1_pin, OUTPUT);
+        stepper_controler->coil2 = coil2_pin;
+        pinMode(coil2_pin, OUTPUT);
+        stepper_controler->coil3 = coil3_pin;
+        pinMode(coil3_pin, OUTPUT);
+        stepper_controler->coil4 = coil4_pin;
+        pinMode(coil4_pin, OUTPUT);
 
         stepper_timer = timerBegin(hw_timer_id, 80, true);
         timerAttachInterrupt(stepper_timer, &stepperMotorTimerISR, false);
     }
 }
 
-void stepperMotorMove(uint16_t nb_steps)
+void stepperMotorMove(int16_t nb_steps)
 {
-    stepper->move(nb_steps);
-    stepper->enableOutputs();
+    if (nb_steps != 0)
+    {
+        stepper_controler->nb_steps = nb_steps;
 
-    timerAlarmWrite(stepper_timer, 1000, true);
-    timerAlarmEnable(stepper_timer);
+        timerAlarmWrite(stepper_timer, 1000, true);
+        timerAlarmEnable(stepper_timer);
+    }
+    else
+    {
+        timerAlarmDisable(stepper_timer);
+    }
 }
 
 /* private functions */
 void IRAM_ATTR stepperMotorTimerISR()
 {
-    float _speed = 0.0;
     uint32_t _interval = 100;
 
-    if (stepper->distanceToGo() > 0)
+    if (stepper_controler->nb_steps != 0)
     {
-        stepper->run();
-
-        _speed = stepper->speed();
-        if (_speed == 0)
+        switch (stepper_controler->curr_step)
         {
-            stepper->disableOutputs();
+        case 0:
+        default:
+            digitalWrite(stepper_controler->coil1, HIGH);
+            digitalWrite(stepper_controler->coil2, HIGH);
+            digitalWrite(stepper_controler->coil3, LOW);
+            digitalWrite(stepper_controler->coil4, LOW);
+            if (stepper_controler->nb_steps < 0)
+            {
+                stepper_controler->nb_steps++;
+                stepper_controler->curr_step = 3;
+            }
+            else
+            {
+                stepper_controler->nb_steps--;
+                stepper_controler->curr_step++;
+            }
+            break;
+        
+        case 1:
+            digitalWrite(stepper_controler->coil1, LOW);
+            digitalWrite(stepper_controler->coil2, HIGH);
+            digitalWrite(stepper_controler->coil3, HIGH);
+            digitalWrite(stepper_controler->coil4, LOW);
+            if (stepper_controler->nb_steps < 0)
+            {
+                stepper_controler->nb_steps++;
+                stepper_controler->curr_step--;
+            }
+            else
+            {
+                stepper_controler->nb_steps--;
+                stepper_controler->curr_step++;
+            }
+            break;
+
+        case 2:
+            digitalWrite(stepper_controler->coil1, LOW);
+            digitalWrite(stepper_controler->coil2, LOW);
+            digitalWrite(stepper_controler->coil3, HIGH);
+            digitalWrite(stepper_controler->coil4, HIGH);
+            if (stepper_controler->nb_steps < 0)
+            {
+                stepper_controler->nb_steps++;
+                stepper_controler->curr_step--;
+            }
+            else
+            {
+                stepper_controler->nb_steps--;
+                stepper_controler->curr_step++;
+            }
+            break;
+
+        case 3:
+            digitalWrite(stepper_controler->coil1, HIGH);
+            digitalWrite(stepper_controler->coil2, LOW);
+            digitalWrite(stepper_controler->coil3, LOW);
+            digitalWrite(stepper_controler->coil4, HIGH);
+            if (stepper_controler->nb_steps < 0)
+            {
+                stepper_controler->nb_steps++;
+                stepper_controler->curr_step--;
+            }
+            else
+            {
+                stepper_controler->nb_steps--;
+                stepper_controler->curr_step = 0;
+            }
+            break;
+        }
+
+        if (stepper_controler->nb_steps == 0)
+        {
             timerAlarmDisable(stepper_timer);
         }
         else
         {
-            // compute timer next interval
-            _interval = uint32_t(abs(1000 / _speed) / 2);
-            timerAlarmWrite(stepper_timer, _interval * 1000, true);
+            timerAlarmWrite(stepper_timer, 3000, true);
         }
     }
     else
     {
-        stepper->disableOutputs();
         timerAlarmDisable(stepper_timer);
     }
 }

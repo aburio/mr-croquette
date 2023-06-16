@@ -43,7 +43,12 @@ void loop()
     if (xQueueReceive(buttonQueue, &state, portMAX_DELAY))
     {
       Serial.printf("button %d\r\n", state);
-      stepperMotorMove(1024);
+      if (state == 1)
+        stepperMotorMove(-10000);
+      else
+      {
+        stepperMotorMove(10000);
+      }
     }
   }
 }

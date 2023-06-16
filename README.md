@@ -10,4 +10,3 @@ Monsieur Croquette (Mister cat food) is a DIY cat feeder made from an ESP32, a s
 
 - IDE - [Platformio](https://platformio.org/)
 - Core - [arduino-esp32](https://github.com/espressif/arduino-esp32)
-- Lib - [AccelStepper](https://github.com/waspinator/AccelStepper) to control the stepper motor

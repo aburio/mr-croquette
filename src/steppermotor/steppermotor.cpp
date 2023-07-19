@@ -45,10 +45,10 @@ void stepperMotorInit(uint8_t coil1_pin, uint8_t coil2_pin, uint8_t coil3_pin, u
 
 void stepperMotorMove(int16_t nb_steps)
 {
+    stepper_controler->nb_steps = nb_steps;
+
     if (nb_steps != 0)
     {
-        stepper_controler->nb_steps = nb_steps;
-
         timerAlarmWrite(stepper_timer, 1000, true);
         timerAlarmEnable(stepper_timer);
     }
@@ -56,6 +56,18 @@ void stepperMotorMove(int16_t nb_steps)
     {
         timerAlarmDisable(stepper_timer);
     }
+}
+
+bool stepperMotorIsMoving()
+{
+    bool _moving = false;
+
+    if (stepper_controler->nb_steps != 0)
+    {
+        _moving = true;
+    }
+
+    return _moving;
 }
 
 /* private functions */

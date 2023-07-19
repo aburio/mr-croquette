@@ -12,7 +12,7 @@
 #define MOTOR_COIL3_PIN 12
 #define MOTOR_COIL4_PIN 25
 
-uint8_t state;
+button_event_t click_event;
 
 /**
  * Initialization
@@ -20,7 +20,7 @@ uint8_t state;
 void setup()
 {
   // logger
-  if (CORE_DEBUG_LEVEL == 6)
+  if (CORE_DEBUG_LEVEL > 0)
   {
     Serial.begin(115200);
   }
@@ -40,14 +40,14 @@ void loop()
 {
   if (buttonQueue != 0)
   {
-    if (xQueueReceive(buttonQueue, &state, portMAX_DELAY))
+    if (xQueueReceive(buttonQueue, &click_event, portMAX_DELAY))
     {
-      Serial.printf("button %d\r\n", state);
-      if (state == 1)
-        stepperMotorMove(-10000);
-      else
+      Serial.printf("button %d %d\r\n", click_event.state, click_event.click_count);
+      if (click_event.state == RELEASED)
+        stepperMotorMove(-1024);
+      else if (click_event.state == LONG_PRESSED)
       {
-        stepperMotorMove(10000);
+        stepperMotorMove(1024);
       }
     }
   }
